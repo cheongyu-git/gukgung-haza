@@ -1,0 +1,2675 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>학교 국궁 습사 및 대회 랭킹 관리 시스템</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .badge-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .badge-silver { background: linear-gradient(135deg, #9ca3af, #4b5563); color: white; }
+    .badge-bronze { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+    .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #f1f5f9; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+
+    /* 인쇄 전용 스타일 */
+    @media print {
+      header, nav, .no-print, button, select, input, #toast-container, #batch-modal, #confirm-modal {
+        display: none !important;
+      }
+      body {
+        background-color: white !important;
+        color: black !important;
+        padding-bottom: 0 !important;
+      }
+      main {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .shadow-sm, .shadow, .shadow-md, .shadow-xl, .shadow-2xl {
+        box-shadow: none !important;
+      }
+      .border, .border-b, .border-t, .border-slate-200 {
+        border-color: #cbd5e1 !important;
+      }
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+      th, td {
+        border: 1px solid #94a3b8 !important;
+        padding: 6px 8px !important;
+        color: black !important;
+      }
+      th {
+        background-color: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      td input[type="checkbox"] {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans pb-16 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-red-600/20 text-red-500 rounded-xl border border-red-500/30">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-extrabold tracking-tight">학교 국궁 습사 및 대회 랭킹 관리 시스템</h1>
+          <p class="text-xs text-slate-400">사대별 수동/자동 배정 · 교시별 습사 구분 · 학년 통합 대회 · 명궁 랭킹</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button onclick="resetToSampleData()" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors">
+          🔄 샘플 데이터 리셋
+        </button>
+        <button onclick="exportDataToJSON()" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors">
+          💾 백업
+        </button>
+        <button onclick="document.getElementById('import-json-file').click()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg border border-emerald-600 transition-colors">
+          📂 복원(불러오기)
+        </button>
+        <input type="file" id="import-json-file" accept=".json" onchange="importDataFromJSON(event)" class="hidden" />
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="max-w-6xl mx-auto px-4 mt-6 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 bg-white rounded-2xl shadow-sm p-1.5 gap-1.5 border border-slate-200">
+      <button id="tab-btn-students" onclick="switchTab('students')" class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all bg-slate-900 text-white shadow">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        학생 관리
+      </button>
+      <button id="tab-btn-add" onclick="switchTab('add')" class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all text-slate-600 hover:bg-slate-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        기록 입력
+      </button>
+      <button id="tab-btn-history" onclick="switchTab('history')" class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all text-slate-600 hover:bg-slate-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        기록 및 통계
+      </button>
+      <button id="tab-btn-ranking" onclick="switchTab('ranking')" class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all text-slate-600 hover:bg-slate-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        랭킹 및 비교
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="max-w-6xl mx-auto px-4">
+
+    <!-- ================= TAB 1: STUDENT MANAGEMENT ================= -->
+    <section id="view-students" class="space-y-6">
+      
+      <!-- Student Registration Box -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <h2 id="student-form-title" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2 h-5 bg-red-600 rounded-full"></span>
+            학생 등록
+          </h2>
+          <div class="flex gap-2">
+            <button onclick="toggleBatchRegisterModal()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              일괄 등록 (명단 복사)
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <form id="student-form" onsubmit="handleStudentSubmit(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">학년 <span class="text-red-500">*</span></label>
+              <select id="student-grade" required class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none bg-white font-medium text-sm">
+                <option value="1">1학년</option>
+                <option value="2">2학년</option>
+                <option value="3">3학년</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">학급 (반) <span class="text-red-500">*</span></label>
+              <select id="student-class" required class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none bg-white font-medium text-sm">
+                <script>
+                  for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}반</option>`);
+                </script>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">번호 <span class="text-red-500">*</span></label>
+              <input type="number" id="student-number" min="1" max="60" placeholder="예: 1" required class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">이름 <span class="text-red-500">*</span></label>
+              <input type="text" id="student-name" placeholder="학생 이름" required class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none text-sm" />
+            </div>
+            <div class="flex items-end gap-2">
+              <button type="submit" id="student-submit-btn" class="flex-1 py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-colors shadow">
+                등록하기
+              </button>
+              <button type="button" id="student-cancel-btn" onclick="cancelStudentEdit()" class="hidden py-2 px-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm rounded-xl transition-colors">
+                취소
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Student List Box -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-bold text-slate-800">등록 학생 목록</h3>
+            <span id="student-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">0명</span>
+            <button onclick="requestDeleteSelectedStudents()" class="px-3 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-xl border border-red-200 transition-colors flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              선택 삭제
+            </button>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-wrap items-center gap-2">
+            <div>
+              <select id="filter-student-grade" onchange="renderStudentsTable()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none">
+                <option value="all">전체 학년</option>
+                <option value="1">1학년</option>
+                <option value="2">2학년</option>
+                <option value="3">3학년</option>
+              </select>
+            </div>
+            <div>
+              <select id="filter-student-class" onchange="renderStudentsTable()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none">
+                <option value="all">전체 반</option>
+                <script>
+                  for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}반</option>`);
+                </script>
+              </select>
+            </div>
+            <div class="w-full sm:w-48">
+              <input type="text" id="filter-student-search" oninput="renderStudentsTable()" placeholder="이름/학번 검색" class="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-red-500" />
+            </div>
+          </div>
+        </div>
+
+        <div class="p-0 overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-xs border-b border-slate-200 uppercase">
+                <th class="p-4 text-center w-12">
+                  <input type="checkbox" id="select-all-students" onchange="toggleSelectAllStudents(this.checked)" class="rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer">
+                </th>
+                <th class="p-4 font-bold text-center">학번</th>
+                <th class="p-4 font-bold">학년</th>
+                <th class="p-4 font-bold">학급</th>
+                <th class="p-4 font-bold">번호</th>
+                <th class="p-4 font-bold">이름</th>
+                <th class="p-4 font-bold text-center">총 습사 횟수</th>
+                <th class="p-4 font-bold text-center">평균 관중율</th>
+                <th class="p-4 font-bold text-center w-32">관리</th>
+              </tr>
+            </thead>
+            <tbody id="student-table-body" class="divide-y divide-slate-100 text-sm">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 2: RECORD INPUT ================= -->
+    <section id="view-add" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between pb-4 mb-6 border-b border-slate-200 gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2.5 h-6 bg-red-600 rounded-full"></span>
+            습사 기록 입력 (1순~3순 15발)
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">개인, 학급 사대별 습사(사대 수동/자동 선택 지원), 학년 통합 대회 모드를 지원합니다.</p>
+        </div>
+        
+        <!-- Record Entry Type Switcher -->
+        <div class="inline-flex flex-wrap bg-slate-100 p-1.5 rounded-2xl gap-1 text-xs font-bold border border-slate-200">
+          <button id="rec-type-individual" onclick="setRecordInputType('individual')" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white shadow transition-all">
+            👤 개인 습사
+          </button>
+          <button id="rec-type-group" onclick="setRecordInputType('group')" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition-all">
+            🎯 학급 사대별 습사
+          </button>
+          <button id="rec-type-competition" onclick="setRecordInputType('competition')" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1">
+            🏆 대회 기록 모드 (다학년 통합)
+          </button>
+        </div>
+      </div>
+      
+      <div id="add-record-container">
+        <!-- JS Rendered Form -->
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: RECORDS & HISTORY ================= -->
+    <section id="view-history" class="hidden space-y-6">
+      
+      <!-- Summary Stats Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-bold text-slate-500 mb-1">전체 총 습사 횟수</p>
+          <p id="stats-total-sessions" class="text-2xl font-black text-slate-900">0회</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-bold text-slate-500 mb-1">학교 평균 관중율</p>
+          <p id="stats-school-avg-rate" class="text-2xl font-black text-red-600">0.0%</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-bold text-slate-500 mb-1">최다 습사 학급</p>
+          <p id="stats-top-class" class="text-xl font-black text-slate-800">-</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-bold text-slate-500 mb-1">최고 관중율 학년</p>
+          <p id="stats-top-grade" class="text-xl font-black text-emerald-600">-</p>
+        </div>
+      </div>
+
+      <!-- History Table & Filter Box -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-6 border-b border-slate-200 bg-slate-50/50 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <h2 class="text-lg font-bold text-slate-800">습사 기록 조회 및 향상도 분석</h2>
+              <button onclick="window.print()" class="px-3 py-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white rounded-xl border border-slate-700 transition-colors flex items-center gap-1 no-print">
+                🖨️ 기록 인쇄
+              </button>
+              <button onclick="deleteSelectedRecords()" class="px-3 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-xl border border-red-200 transition-colors flex items-center gap-1 no-print">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                선택 삭제
+              </button>
+            </div>
+            
+            <div class="inline-flex bg-slate-200 p-1 rounded-xl gap-1 text-xs font-bold no-print">
+              <button id="history-filter-all" onclick="setHistoryModeFilter('all')" class="px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow">전체</button>
+              <button id="history-filter-practice" onclick="setHistoryModeFilter('practice')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900">🎯 연습</button>
+              <button id="history-filter-evaluation" onclick="setHistoryModeFilter('evaluation')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900">🏆 평가</button>
+              <button id="history-filter-competition" onclick="setHistoryModeFilter('competition')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900">🥇 대회</button>
+            </div>
+          </div>
+
+          <!-- Multi Filter Bar -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-200/60 no-print">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">학년 필터</label>
+              <select id="history-grade-select" onchange="updateHistoryStudentDropdown(); renderHistoryTable();" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none">
+                <option value="all">전체 학년</option>
+                <option value="1">1학년</option>
+                <option value="2">2학년</option>
+                <option value="3">3학년</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">학급(반) 필터</label>
+              <select id="history-class-select" onchange="updateHistoryStudentDropdown(); renderHistoryTable();" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none">
+                <option value="all">전체 반</option>
+                <script>
+                  for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}반</option>`);
+                </script>
+              </select>
+            </div>
+            <div class="col-span-1 sm:col-span-2">
+              <label class="block text-xs font-bold text-slate-500 mb-1">학생 특정 조회</label>
+              <select id="history-student-select" onchange="renderHistoryTable()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white outline-none">
+                <!-- JS Populated -->
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="history-edit-modal-container" class="hidden p-6 border-b border-slate-200 bg-amber-50 no-print">
+          <!-- Inline Record Edit Form -->
+        </div>
+
+        <div class="p-0 overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-xs border-b border-slate-200 uppercase">
+                <th class="p-4 text-center w-12 no-print">
+                  <input type="checkbox" id="select-all-records" onchange="toggleSelectAllRecords(this.checked)" class="rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer">
+                </th>
+                <th class="p-4 font-bold whitespace-nowrap">날짜 (교시)</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">학생 (학번)</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">구분</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">1순</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">2순</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">3순</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap text-red-600">총 관중</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap">관중율</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap bg-slate-50">향상도</th>
+                <th class="p-4 font-bold text-center whitespace-nowrap w-24 no-print">관리</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-100 text-sm">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: RANKINGS & COMPARISON ================= -->
+    <section id="view-ranking" class="space-y-6 hidden">
+      
+      <!-- Ranking Mode Bar -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+            🏆 국궁 명궁 & 학급 랭킹
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">개인 명궁 순위 및 각 학급/학년별 종합 성적과 속한 학생들의 랭킹 명단을 제공합니다.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="window.print()" class="px-3 py-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white rounded-xl border border-slate-700 transition-colors flex items-center gap-1 no-print">
+            🖨️ 랭킹 인쇄
+          </button>
+          
+          <!-- Ranking Sub-Type Switcher -->
+          <div class="inline-flex bg-slate-200 p-1 rounded-xl gap-1 text-xs font-bold no-print">
+            <button id="rank-type-individual" onclick="setRankingType('individual')" class="px-3.5 py-2 rounded-lg bg-slate-900 text-white shadow">🥇 개인 랭킹</button>
+            <button id="rank-type-class" onclick="setRankingType('class')" class="px-3.5 py-2 rounded-lg text-slate-700 hover:bg-slate-300">👥 학급별 랭킹</button>
+            <button id="rank-type-grade" onclick="setRankingType('grade')" class="px-3.5 py-2 rounded-lg text-slate-700 hover:bg-slate-300">🏫 학년별 랭킹</button>
+          </div>
+
+          <!-- Mode Filter -->
+          <div class="inline-flex bg-slate-100 border border-slate-200 p-1 rounded-xl gap-1 text-xs font-semibold no-print">
+            <button id="ranking-filter-all" onclick="setRankingModeFilter('all')" class="px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow">전체</button>
+            <button id="ranking-filter-evaluation" onclick="setRankingModeFilter('evaluation')" class="px-3 py-1.5 rounded-lg text-slate-600">🏆 평가</button>
+            <button id="ranking-filter-practice" onclick="setRankingModeFilter('practice')" class="px-3 py-1.5 rounded-lg text-slate-600">🎯 연습</button>
+            <button id="ranking-filter-competition" onclick="setRankingModeFilter('competition')" class="px-3 py-1.5 rounded-lg text-slate-600">🥇 대회</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters for Individual Ranking -->
+      <div id="individual-rank-filter-box" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4 no-print">
+        <span class="text-xs font-bold text-slate-600">개인 랭킹 소속 조건:</span>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500">학년</label>
+          <select id="ranking-grade-filter" onchange="renderRankingView()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none">
+            <option value="all">전체 학년</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500">학급</label>
+          <select id="ranking-class-filter" onchange="renderRankingView()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none">
+            <option value="all">전체 반</option>
+            <script>
+              for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}반</option>`);
+            </script>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ranking Output Container -->
+      <div id="ranking-container" class="space-y-6">
+        <!-- JS Populated according to ranking type -->
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Batch Register Modal -->
+  <div id="batch-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+      <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+        📂 학급 학생 일괄 등록
+      </h3>
+      <p class="text-xs text-slate-500 mb-4">
+        엑셀이나 텍스트의 이름을 한 줄에 하나씩 붙여넣으세요.<br>
+        선택한 학년/반에 번호가 1번부터 자동으로 부여되어 등록됩니다.
+      </p>
+
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">대상 학년</label>
+          <select id="batch-grade" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">대상 학급 (반)</label>
+          <select id="batch-class" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+            <script>
+              for(let i=1; i<=12; i++) document.write(`<option value="${i}">${i}반</option>`);
+            </script>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-slate-600 mb-1">학생 이름 명단 (줄바꿈 구분)</label>
+        <textarea id="batch-names" rows="6" placeholder="김철수&#10;이영희&#10;박민수&#10;최지훈" class="w-full p-3 rounded-xl border border-slate-300 text-xs font-mono outline-none focus:ring-2 focus:ring-red-500"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="toggleBatchRegisterModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200">취소</button>
+        <button onclick="submitBatchStudents()" class="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700">일괄 등록 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Confirm Modal -->
+  <div id="confirm-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+      <h3 class="text-lg font-bold text-slate-900 mb-2">확인</h3>
+      <p id="confirm-modal-msg" class="text-sm text-slate-600 mb-6 whitespace-pre-line">정말 진행하시겠습니까?</p>
+      <div class="flex justify-end gap-2">
+        <button id="confirm-modal-cancel" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200">취소</button>
+        <button id="confirm-modal-ok" class="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // 교시/시간대 선택 옵션 리스트
+    const PERIOD_OPTIONS = [
+      '0교시', '1교시', '2교시', '3교시', '4교시',
+      '점심시간', '5교시', '6교시', '7교시', '방과후'
+    ];
+
+    function getTodayDateString() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Initial Sample Data
+    const INITIAL_STUDENTS = [
+      { studentId: '10201', grade: '1', classNo: '2', number: '1', name: '김국궁' },
+      { studentId: '10202', grade: '1', classNo: '2', number: '2', name: '이명중' },
+      { studentId: '10203', grade: '1', classNo: '2', number: '3', name: '박화살' },
+      { studentId: '10204', grade: '1', classNo: '2', number: '4', name: '한시위' },
+      { studentId: '10205', grade: '1', classNo: '2', number: '5', name: '윤궁도' },
+      { studentId: '10206', grade: '1', classNo: '2', number: '6', name: '송동의' },
+      { studentId: '10207', grade: '1', classNo: '2', number: '7', name: '임깍지' },
+      { studentId: '10208', grade: '1', classNo: '2', number: '8', name: '조사대' },
+      { studentId: '20101', grade: '2', classNo: '1', number: '1', name: '최주몽' },
+      { studentId: '20102', grade: '2', classNo: '1', number: '2', name: '정관중' },
+      { studentId: '30501', grade: '3', classNo: '5', number: '1', name: '강신궁' }
+    ];
+
+    const INITIAL_RECORDS = [
+      {
+        id: 'rec_1',
+        date: new Date(Date.now() - 86400000 * 4).toISOString().slice(0, 10),
+        period: '방과후',
+        studentId: '10201',
+        mode: 'practice',
+        title: '자율 연습',
+        results: [
+          [true, false, true, false, false],
+          [false, true, true, false, false],
+          [true, false, false, false, false]
+        ],
+        totalHits: 6,
+        hitRate: 40.0
+      },
+      {
+        id: 'rec_2',
+        date: new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 10),
+        period: '5교시',
+        studentId: '10201',
+        mode: 'evaluation',
+        title: '수업 수행평가',
+        results: [
+          [true, true, true, false, false],
+          [true, true, false, true, false],
+          [true, false, true, false, true]
+        ],
+        totalHits: 9,
+        hitRate: 60.0
+      },
+      {
+        id: 'rec_3',
+        date: new Date(Date.now() - 86400000 * 3).toISOString().slice(0, 10),
+        period: '7교시',
+        studentId: '20101',
+        mode: 'competition',
+        title: '교내 국궁 대회 1라운드',
+        results: [
+          [true, true, true, true, false],
+          [true, true, true, true, true],
+          [true, true, false, true, true]
+        ],
+        totalHits: 13,
+        hitRate: 86.7
+      },
+      {
+        id: 'rec_4',
+        date: new Date(Date.now() - 86400000 * 1).toISOString().slice(0, 10),
+        period: '방과후',
+        studentId: '30501',
+        mode: 'competition',
+        title: '교내 국궁 대회 본선',
+        results: [
+          [true, true, true, true, true],
+          [true, true, true, true, true],
+          [true, true, true, true, false]
+        ],
+        totalHits: 14,
+        hitRate: 93.3
+      }
+    ];
+
+    // App Global State
+    let students = JSON.parse(localStorage.getItem('gukgung_v4_students')) || INITIAL_STUDENTS;
+    let records = JSON.parse(localStorage.getItem('gukgung_v4_records')) || INITIAL_RECORDS;
+    let currentTab = 'students';
+    let editingStudentId = null;
+
+    // Filter States
+    let historyModeFilter = 'all'; 
+    let rankingModeFilter = 'all';
+    let rankingType = 'individual'; 
+
+    let recordInputType = 'individual'; // 'individual', 'group', or 'competition'
+
+    // Open/Collapsed Accordion State
+    let openRosters = {}; 
+
+    // Individual Record Form State
+    let activeRecordFormState = {
+      date: getTodayDateString(),
+      period: '7교시',
+      grade: '1',
+      classNo: '2',
+      studentId: '',
+      mode: 'practice',
+      results: [
+        [false, false, false, false, false],
+        [false, false, false, false, false],
+        [false, false, false, false, false]
+      ]
+    };
+
+    // Class / Sadai Group Record State
+    let groupRecordState = {
+      date: getTodayDateString(),
+      period: '7교시',
+      grade: '1',
+      classNo: '2',
+      mode: 'practice',
+      selectedStudentIds: [],
+      sadaiMap: {},
+      activeSadaiIdx: 0,
+      studentResults: {}
+    };
+
+    // Competition Mode State
+    let competitionRecordState = {
+      date: getTodayDateString(),
+      period: '방과후',
+      title: '제1회 교내 국궁 대회',
+      filterGrade: 'all',
+      filterClass: 'all',
+      searchQuery: '',
+      rosterStudentIds: ['10201', '20101', '30501'],
+      sadaiMap: { '10201': 0, '20101': 0, '30501': 0 },
+      activeSadaiIdx: 0,
+      studentResults: {}
+    };
+
+    let editingRecordState = null;
+
+    function saveState() {
+      localStorage.setItem('gukgung_v4_students', JSON.stringify(students));
+      localStorage.setItem('gukgung_v4_records', JSON.stringify(records));
+    }
+
+    function resetToSampleData() {
+      openConfirm('모든 데이터를 샘플 데이터로 초기화하시겠습니까?', () => {
+        students = JSON.parse(JSON.stringify(INITIAL_STUDENTS));
+        records = JSON.parse(JSON.stringify(INITIAL_RECORDS));
+        saveState();
+        showToast('샘플 데이터로 초기화되었습니다.');
+        refreshCurrentTab();
+      });
+    }
+
+    function exportDataToJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ students, records }, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `gukgung_backup_${getTodayDateString()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('데이터 백업 파일이 다운로드되었습니다.');
+    }
+
+    function importDataFromJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (!importedData || typeof importedData !== 'object') {
+            throw new Error('올바르지 않은 JSON 데이터 형식입니다.');
+          }
+
+          if (!importedData.students && !importedData.records) {
+            throw new Error('백업 파일에 학생 명단(students) 또는 습사 기록(records)이 존재하지 않습니다.');
+          }
+
+          const newStudents = Array.isArray(importedData.students) ? importedData.students : students;
+          const newRecords = Array.isArray(importedData.records) ? importedData.records : records;
+
+          openConfirm(
+            `선택한 백업 파일에서 학생 ${newStudents.length}명, 습사 기록 ${newRecords.length}건을 불러옵니다.\n기존 데이터가 백업 내용으로 대체됩니다. 진행하시겠습니까?`,
+            () => {
+              students = newStudents;
+              records = newRecords;
+              saveState();
+              showToast('데이터가 성공적으로 복원되었습니다!');
+              refreshCurrentTab();
+            }
+          );
+        } catch (err) {
+          showToast(`복원 실패: ${err.message}`, 'error');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      const bgClass = type === 'error' ? 'bg-red-900 text-white' : 'bg-slate-900 text-white';
+      toast.className = `${bgClass} px-4 py-3 rounded-xl shadow-xl text-xs font-bold transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2 border border-slate-700`;
+      toast.innerHTML = `<span>🎯</span><span>${message}</span>`;
+      
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+      
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function openConfirm(message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      const msgElem = document.getElementById('confirm-modal-msg');
+      const okBtn = document.getElementById('confirm-modal-ok');
+      const cancelBtn = document.getElementById('confirm-modal-cancel');
+
+      msgElem.innerText = message;
+      modal.classList.remove('hidden');
+
+      const close = () => {
+        modal.classList.add('hidden');
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+      };
+
+      okBtn.onclick = () => { close(); onConfirm(); };
+      cancelBtn.onclick = close;
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      ['students', 'add', 'history', 'ranking'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          btn.className = "flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all bg-slate-900 text-white shadow";
+          view.classList.remove('hidden');
+        } else {
+          btn.className = "flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all text-slate-600 hover:bg-slate-100";
+          view.classList.add('hidden');
+        }
+      });
+
+      refreshCurrentTab();
+    }
+
+    function refreshCurrentTab() {
+      if (currentTab === 'students') renderStudentsTable();
+      if (currentTab === 'add') renderAddRecordView();
+      if (currentTab === 'history') { updateHistoryStudentDropdown(); renderHistoryTable(); updateSummaryStats(); }
+      if (currentTab === 'ranking') renderRankingView();
+    }
+
+    function generateStudentId(grade, classNo, number) {
+      const g = String(grade);
+      const c = String(classNo).padStart(2, '0');
+      const n = String(number).padStart(2, '0');
+      return `${g}${c}${n}`;
+    }
+
+    function renderStudentsTable() {
+      const tbody = document.getElementById('student-table-body');
+      const gradeFilter = document.getElementById('filter-student-grade').value;
+      const classFilter = document.getElementById('filter-student-class').value;
+      const searchFilter = document.getElementById('filter-student-search').value.trim().toLowerCase();
+
+      const selectAllCb = document.getElementById('select-all-students');
+      if (selectAllCb) selectAllCb.checked = false;
+
+      let filtered = students.filter(s => {
+        if (gradeFilter !== 'all' && s.grade !== gradeFilter) return false;
+        if (classFilter !== 'all' && s.classNo !== classFilter) return false;
+        if (searchFilter) {
+          const matchName = s.name.toLowerCase().includes(searchFilter);
+          const matchId = s.studentId.toLowerCase().includes(searchFilter);
+          if (!matchName && !matchId) return false;
+        }
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (a.grade !== b.grade) return parseInt(a.grade) - parseInt(b.grade);
+        if (a.classNo !== b.classNo) return parseInt(a.classNo) - parseInt(b.classNo);
+        return parseInt(a.number) - parseInt(b.number);
+      });
+
+      document.getElementById('student-count-badge').innerText = `${filtered.length}명`;
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400">조건에 일치하는 학생이 없습니다.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(s => {
+        const studentRecs = records.filter(r => r.studentId === s.studentId);
+        const totalSessions = studentRecs.length;
+        let avgHitRate = '-';
+        if (totalSessions > 0) {
+          const sumHits = studentRecs.reduce((acc, cur) => acc + cur.totalHits, 0);
+          avgHitRate = ((sumHits / (totalSessions * 15)) * 100).toFixed(1) + '%';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-slate-50 transition-colors ${editingStudentId === s.studentId ? 'bg-amber-50/60' : ''}`;
+        tr.innerHTML = `
+          <td class="p-4 text-center">
+            <input type="checkbox" class="student-select-cb rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer" value="${s.studentId}">
+          </td>
+          <td class="p-4 text-center font-mono font-bold text-xs text-slate-500">${s.studentId}</td>
+          <td class="p-4 font-semibold">${s.grade}학년</td>
+          <td class="p-4 font-semibold">${s.classNo}반</td>
+          <td class="p-4 font-medium text-slate-600">${s.number}번</td>
+          <td class="p-4 font-bold text-slate-900">${s.name}</td>
+          <td class="p-4 text-center text-slate-700 font-medium">${totalSessions}회</td>
+          <td class="p-4 text-center font-bold text-red-600">${avgHitRate}</td>
+          <td class="p-4 text-center">
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="quickRecordForStudent('${s.studentId}')" class="px-2 py-1 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="기록 입력">
+                🎯 입력
+              </button>
+              <button onclick="editStudent('${s.studentId}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="수정">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button onclick="requestDeleteStudent('${s.studentId}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleSelectAllStudents(checked) {
+      const checkboxes = document.querySelectorAll('.student-select-cb');
+      checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    function requestDeleteSelectedStudents() {
+      const checkboxes = document.querySelectorAll('.student-select-cb:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+
+      if (selectedIds.length === 0) {
+        showToast('삭제할 학생을 선택해 주세요.', 'error');
+        return;
+      }
+
+      const hasRecsCount = selectedIds.filter(id => records.some(r => r.studentId === id)).length;
+      let confirmMsg = `선택한 ${selectedIds.length}명의 학생을 삭제하시겠습니까?`;
+      if (hasRecsCount > 0) {
+        confirmMsg += `\n(※ 포함된 학생들의 기존 습사 기록도 함께 삭제됩니다.)`;
+      }
+
+      openConfirm(confirmMsg, () => {
+        students = students.filter(s => !selectedIds.includes(s.studentId));
+        records = records.filter(r => !selectedIds.includes(r.studentId));
+        saveState();
+        showToast(`${selectedIds.length}명의 학생이 삭제되었습니다.`);
+        renderStudentsTable();
+      });
+    }
+
+    function handleStudentSubmit(e) {
+      e.preventDefault();
+      const grade = document.getElementById('student-grade').value;
+      const classNo = document.getElementById('student-class').value;
+      const number = document.getElementById('student-number').value.trim();
+      const name = document.getElementById('student-name').value.trim();
+
+      if (!grade || !classNo || !number || !name) return;
+
+      const studentId = generateStudentId(grade, classNo, number);
+
+      if (editingStudentId) {
+        students = students.map(s => s.studentId === editingStudentId ? { studentId, grade, classNo, number, name } : s);
+        if (editingStudentId !== studentId) {
+          records = records.map(r => r.studentId === editingStudentId ? { ...r, studentId } : r);
+        }
+        showToast('학생 정보가 수정되었습니다.');
+        cancelStudentEdit();
+      } else {
+        if (students.some(s => s.studentId === studentId)) {
+          showToast(`이미 ${grade}학년 ${classNo}반 ${number}번 학생이 존재합니다.`, 'error');
+          return;
+        }
+        students.push({ studentId, grade, classNo, number, name });
+        showToast('새 학생이 등록되었습니다.');
+        document.getElementById('student-number').value = '';
+        document.getElementById('student-name').value = '';
+      }
+
+      saveState();
+      renderStudentsTable();
+    }
+
+    function editStudent(sId) {
+      const s = students.find(item => item.studentId === sId);
+      if (!s) return;
+
+      editingStudentId = sId;
+      document.getElementById('student-form-title').innerText = '학생 정보 수정';
+      document.getElementById('student-grade').value = s.grade;
+      document.getElementById('student-class').value = s.classNo;
+      document.getElementById('student-number').value = s.number;
+      document.getElementById('student-name').value = s.name;
+      document.getElementById('student-submit-btn').innerText = '수정 저장';
+      document.getElementById('student-cancel-btn').classList.remove('hidden');
+      renderStudentsTable();
+    }
+
+    function cancelStudentEdit() {
+      editingStudentId = null;
+      document.getElementById('student-form-title').innerText = '학생 등록';
+      document.getElementById('student-form').reset();
+      document.getElementById('student-submit-btn').innerText = '등록하기';
+      document.getElementById('student-cancel-btn').classList.add('hidden');
+      renderStudentsTable();
+    }
+
+    function requestDeleteStudent(sId) {
+      const hasRecs = records.some(r => r.studentId === sId);
+      const confirmMsg = hasRecs
+        ? '이 학생을 삭제하시겠습니까?\n(※ 해당 학생의 기존 습사 기록도 함께 삭제됩니다.)'
+        : '이 학생을 삭제하시겠습니까?';
+
+      openConfirm(confirmMsg, () => {
+        students = students.filter(s => s.studentId !== sId);
+        records = records.filter(r => r.studentId !== sId);
+        saveState();
+        showToast('학생 및 연관 기록이 삭제되었습니다.');
+        renderStudentsTable();
+      });
+    }
+
+    function toggleBatchRegisterModal() {
+      const modal = document.getElementById('batch-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    function submitBatchStudents() {
+      const grade = document.getElementById('batch-grade').value;
+      const classNo = document.getElementById('batch-class').value;
+      const rawText = document.getElementById('batch-names').value;
+      
+      const names = rawText.split('\n').map(n => n.trim()).filter(Boolean);
+      if (names.length === 0) {
+        showToast('등록할 이름을 입력하세요.', 'error');
+        return;
+      }
+
+      let addedCount = 0;
+      names.forEach((name, idx) => {
+        const number = String(idx + 1);
+        const studentId = generateStudentId(grade, classNo, number);
+        
+        if (!students.some(s => s.studentId === studentId)) {
+          students.push({ studentId, grade, classNo, number, name });
+          addedCount++;
+        }
+      });
+
+      saveState();
+      toggleBatchRegisterModal();
+      document.getElementById('batch-names').value = '';
+      showToast(`${addedCount}명의 학생이 ${grade}학년 ${classNo}반에 등록되었습니다.`);
+      renderStudentsTable();
+    }
+
+    function quickRecordForStudent(sId) {
+      const s = students.find(item => item.studentId === sId);
+      if (!s) return;
+      activeRecordFormState.grade = s.grade;
+      activeRecordFormState.classNo = s.classNo;
+      activeRecordFormState.studentId = s.studentId;
+      activeRecordFormState.date = getTodayDateString();
+      setRecordInputType('individual');
+      switchTab('add');
+    }
+
+    function setRecordInputType(type) {
+      recordInputType = type;
+      const btnIndiv = document.getElementById('rec-type-individual');
+      const btnGroup = document.getElementById('rec-type-group');
+      const btnComp = document.getElementById('rec-type-competition');
+
+      [btnIndiv, btnGroup, btnComp].forEach(btn => {
+        btn.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition-all font-bold";
+      });
+
+      if (type === 'individual') {
+        btnIndiv.className = "px-3.5 py-2 rounded-xl bg-slate-900 text-white shadow transition-all font-bold";
+      } else if (type === 'group') {
+        btnGroup.className = "px-3.5 py-2 rounded-xl bg-slate-900 text-white shadow transition-all font-bold";
+      } else if (type === 'competition') {
+        btnComp.className = "px-3.5 py-2 rounded-xl bg-red-600 text-white shadow transition-all font-bold flex items-center gap-1";
+      }
+
+      renderAddRecordView();
+    }
+
+    function renderAddRecordView() {
+      const container = document.getElementById('add-record-container');
+      if (students.length === 0) {
+        container.innerHTML = `<div class="p-12 text-center text-slate-400">등록된 학생이 없습니다. 먼저 '학생 관리' 탭에서 학생을 등록해 주세요.</div>`;
+        return;
+      }
+
+      if (recordInputType === 'individual') {
+        container.innerHTML = buildRecordFormHTML('add', activeRecordFormState);
+      } else if (recordInputType === 'group') {
+        container.innerHTML = buildGroupRecordFormHTML();
+      } else if (recordInputType === 'competition') {
+        container.innerHTML = buildCompetitionRecordFormHTML();
+      }
+    }
+
+    function setStudentSadaiAssignment(studentId, sadaiIdx, modeType) {
+      const idx = parseInt(sadaiIdx);
+      if (modeType === 'group') {
+        groupRecordState.sadaiMap[studentId] = idx;
+      } else if (modeType === 'competition') {
+        competitionRecordState.sadaiMap[studentId] = idx;
+      }
+      renderAddRecordView();
+    }
+
+    function autoAssignSadaiBy7(modeType) {
+      if (modeType === 'group') {
+        groupRecordState.selectedStudentIds.forEach((sId, i) => {
+          groupRecordState.sadaiMap[sId] = Math.floor(i / 7);
+        });
+        showToast('학급 전체 학생을 7명씩 자동으로 사대 배정했습니다.');
+      } else if (modeType === 'competition') {
+        competitionRecordState.rosterStudentIds.forEach((sId, i) => {
+          competitionRecordState.sadaiMap[sId] = Math.floor(i / 7);
+        });
+        showToast('대회 참전 학생을 7명씩 자동으로 사대 배정했습니다.');
+      }
+      renderAddRecordView();
+    }
+
+    function addNewSadai(modeType) {
+      if (modeType === 'group') {
+        const currentSadaiIndices = Object.values(groupRecordState.sadaiMap);
+        const maxIdx = currentSadaiIndices.length > 0 ? Math.max(...currentSadaiIndices, 0) : 0;
+        groupRecordState.activeSadaiIdx = maxIdx + 1;
+        showToast(`${maxIdx + 2}사대가 추가되었습니다.`);
+      } else if (modeType === 'competition') {
+        const currentSadaiIndices = Object.values(competitionRecordState.sadaiMap);
+        const maxIdx = currentSadaiIndices.length > 0 ? Math.max(...currentSadaiIndices, 0) : 0;
+        competitionRecordState.activeSadaiIdx = maxIdx + 1;
+        showToast(`대회 ${maxIdx + 2}사대가 추가되었습니다.`);
+      }
+      renderAddRecordView();
+    }
+
+    function onGroupGradeClassChange() {
+      const grade = document.getElementById('group-rec-grade').value;
+      const classNo = document.getElementById('group-rec-class').value;
+
+      groupRecordState.grade = grade;
+      groupRecordState.classNo = classNo;
+
+      const classStudents = students.filter(s => s.grade === grade && s.classNo === classNo);
+      groupRecordState.selectedStudentIds = classStudents.map(s => s.studentId);
+      
+      classStudents.forEach((s, idx) => {
+        if (groupRecordState.sadaiMap[s.studentId] === undefined) {
+          groupRecordState.sadaiMap[s.studentId] = Math.floor(idx / 7);
+        }
+        if (!groupRecordState.studentResults[s.studentId]) {
+          groupRecordState.studentResults[s.studentId] = [
+            [false, false, false, false, false],
+            [false, false, false, false, false],
+            [false, false, false, false, false]
+          ];
+        }
+      });
+
+      groupRecordState.activeSadaiIdx = 0;
+      renderAddRecordView();
+    }
+
+    function toggleGroupStudentSelection(sId, checked) {
+      if (checked) {
+        if (!groupRecordState.selectedStudentIds.includes(sId)) {
+          groupRecordState.selectedStudentIds.push(sId);
+        }
+        if (groupRecordState.sadaiMap[sId] === undefined) {
+          groupRecordState.sadaiMap[sId] = groupRecordState.activeSadaiIdx || 0;
+        }
+        if (!groupRecordState.studentResults[sId]) {
+          groupRecordState.studentResults[sId] = [
+            [false, false, false, false, false],
+            [false, false, false, false, false],
+            [false, false, false, false, false]
+          ];
+        }
+      } else {
+        groupRecordState.selectedStudentIds = groupRecordState.selectedStudentIds.filter(id => id !== sId);
+      }
+      renderAddRecordView();
+    }
+
+    function toggleGroupAllStudents(checked) {
+      const classStudents = students.filter(s => s.grade === groupRecordState.grade && s.classNo === groupRecordState.classNo);
+      if (checked) {
+        groupRecordState.selectedStudentIds = classStudents.map(s => s.studentId);
+        classStudents.forEach((s, idx) => {
+          if (groupRecordState.sadaiMap[s.studentId] === undefined) {
+            groupRecordState.sadaiMap[s.studentId] = Math.floor(idx / 7);
+          }
+          if (!groupRecordState.studentResults[s.studentId]) {
+            groupRecordState.studentResults[s.studentId] = [
+              [false, false, false, false, false],
+              [false, false, false, false, false],
+              [false, false, false, false, false]
+            ];
+          }
+        });
+      } else {
+        groupRecordState.selectedStudentIds = [];
+      }
+      renderAddRecordView();
+    }
+
+    function toggleGroupArrowHit(sId, sunIdx, arrowIdx) {
+      if (!groupRecordState.studentResults[sId]) {
+        groupRecordState.studentResults[sId] = [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+      }
+      groupRecordState.studentResults[sId][sunIdx][arrowIdx] = !groupRecordState.studentResults[sId][sunIdx][arrowIdx];
+      renderAddRecordView();
+    }
+
+    function setGroupRecordMode(selectedMode) {
+      groupRecordState.mode = selectedMode;
+      renderAddRecordView();
+    }
+
+    function buildGroupRecordFormHTML() {
+      const classStudents = students.filter(s => s.grade === groupRecordState.grade && s.classNo === groupRecordState.classNo);
+      
+      if (groupRecordState.selectedStudentIds.length === 0 && classStudents.length > 0) {
+        groupRecordState.selectedStudentIds = classStudents.map(s => s.studentId);
+        classStudents.forEach((s, idx) => {
+          if (groupRecordState.sadaiMap[s.studentId] === undefined) {
+            groupRecordState.sadaiMap[s.studentId] = Math.floor(idx / 7);
+          }
+          if (!groupRecordState.studentResults[s.studentId]) {
+            groupRecordState.studentResults[s.studentId] = [
+              [false, false, false, false, false],
+              [false, false, false, false, false],
+              [false, false, false, false, false]
+            ];
+          }
+        });
+      }
+
+      const isAllSelected = classStudents.length > 0 && classStudents.every(s => groupRecordState.selectedStudentIds.includes(s.studentId));
+
+      let maxSadai = 0;
+      groupRecordState.selectedStudentIds.forEach(sId => {
+        const sIdx = groupRecordState.sadaiMap[sId] !== undefined ? groupRecordState.sadaiMap[sId] : 0;
+        if (sIdx > maxSadai) maxSadai = sIdx;
+      });
+
+      const totalSadaiCount = Math.max(1, maxSadai + 1);
+      if (groupRecordState.activeSadaiIdx >= totalSadaiCount) {
+        groupRecordState.activeSadaiIdx = 0;
+      }
+
+      const currentSadaiStudentIds = groupRecordState.selectedStudentIds.filter(
+        sId => (groupRecordState.sadaiMap[sId] || 0) === groupRecordState.activeSadaiIdx
+      );
+
+      let activeStudentsHtml = '';
+      if (groupRecordState.selectedStudentIds.length === 0) {
+        activeStudentsHtml = `<div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-300">사대 습사에 참여할 학생을 선택해 주세요.</div>`;
+      } else if (currentSadaiStudentIds.length === 0) {
+        activeStudentsHtml = `<div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-300">현재 ${groupRecordState.activeSadaiIdx + 1}사대에 배정된 학생이 없습니다.</div>`;
+      } else {
+        activeStudentsHtml = currentSadaiStudentIds.map((sId, localIdx) => {
+          const s = students.find(item => item.studentId === sId);
+          if (!s) return '';
+
+          const res = groupRecordState.studentResults[sId] || [
+            [false, false, false, false, false],
+            [false, false, false, false, false],
+            [false, false, false, false, false]
+          ];
+
+          const totalHits = res.flat().filter(Boolean).length;
+          const hitRate = ((totalHits / 15) * 100).toFixed(1);
+
+          return `
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+              <div class="flex flex-wrap items-center justify-between border-b border-slate-200/80 pb-2.5 gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center">${localIdx + 1}번</span>
+                  <span class="font-bold text-slate-900 text-sm">${s.name}</span>
+                  <span class="text-xs text-slate-400 font-mono">(${s.grade}학년 ${s.classNo}반 ${s.number}번)</span>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold">
+                    <span class="text-slate-500 text-[11px]">사대 변경:</span>
+                    <select onchange="setStudentSadaiAssignment('${s.studentId}', this.value, 'group')" class="bg-transparent font-bold text-slate-800 outline-none">
+                      ${Array.from({ length: Math.max(totalSadaiCount, 4) }, (_, i) => `
+                        <option value="${i}" ${(groupRecordState.sadaiMap[s.studentId] || 0) === i ? 'selected' : ''}>${i + 1}사대</option>
+                      `).join('')}
+                    </select>
+                  </div>
+
+                  <span class="text-xs font-bold text-slate-600">관중: <strong class="text-red-600 font-black text-sm">${totalHits}중</strong> (${hitRate}%)</span>
+                  <button type="button" onclick="toggleGroupStudentSelection('${s.studentId}', false)" class="text-slate-400 hover:text-red-600 text-xs font-bold px-1.5 py-0.5 rounded">✕ 제외</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                ${[0, 1, 2].map(sunIdx => `
+                  <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-slate-700 w-8">${sunIdx + 1}순</span>
+                    <div class="flex items-center gap-1">
+                      ${[0, 1, 2, 3, 4].map(arrowIdx => {
+                        const isHit = res[sunIdx][arrowIdx];
+                        return `
+                          <button type="button" onclick="toggleGroupArrowHit('${s.studentId}', ${sunIdx}, ${arrowIdx})" class="w-7 h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                            isHit ? 'bg-red-600 text-white shadow ring-1 ring-red-500' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                          }">
+                            ${isHit ? 'O' : 'X'}
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-500 w-8 text-right">${res[sunIdx].filter(Boolean).length}중</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">습사 날짜</label>
+              <input type="date" value="${groupRecordState.date || getTodayDateString()}" onchange="groupRecordState.date = this.value" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">교시/시간대 선택</label>
+              <select onchange="groupRecordState.period = this.value" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none">
+                ${PERIOD_OPTIONS.map(p => `<option value="${p}" ${groupRecordState.period === p ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">학년 선택</label>
+              <select id="group-rec-grade" onchange="onGroupGradeClassChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                <option value="1" ${groupRecordState.grade === '1' ? 'selected' : ''}>1학년</option>
+                <option value="2" ${groupRecordState.grade === '2' ? 'selected' : ''}>2학년</option>
+                <option value="3" ${groupRecordState.grade === '3' ? 'selected' : ''}>3학년</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">학급 (반) 선택</label>
+              <select id="group-rec-class" onchange="onGroupGradeClassChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                ${[1,2,3,4,5,6,7,8,9,10,11,12].map(c => `<option value="${c}" ${groupRecordState.classNo == c ? 'selected' : ''}>${c}반</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">습사 구분 모드</label>
+              <div class="flex gap-1.5">
+                <button type="button" onclick="setGroupRecordMode('practice')" class="flex-1 py-2 px-2 rounded-xl font-bold text-xs border transition-all ${groupRecordState.mode === 'practice' ? 'bg-sky-500 text-white border-sky-500 shadow' : 'bg-white text-slate-600 border-slate-300'}">
+                  🎯 연습
+                </button>
+                <button type="button" onclick="setGroupRecordMode('evaluation')" class="flex-1 py-2 px-2 rounded-xl font-bold text-xs border transition-all ${groupRecordState.mode === 'evaluation' ? 'bg-amber-600 text-white border-amber-600 shadow' : 'bg-white text-slate-600 border-slate-300'}">
+                  🏆 평가
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                <span>학급 습사 참여 학생 선택 (${groupRecordState.selectedStudentIds.length}명 선택됨)</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="autoAssignSadaiBy7('group')" class="px-2.5 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
+                  🔄 7명씩 자동 배정
+                </button>
+                <label class="text-xs font-bold text-slate-600 flex items-center gap-1.5 cursor-pointer ml-2">
+                  <input type="checkbox" onchange="toggleGroupAllStudents(this.checked)" ${isAllSelected ? 'checked' : ''} class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                  <span>반 전체 선택</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1 scrollbar-thin">
+              ${classStudents.length === 0 ? `<span class="text-xs text-slate-400">해당 학급에 등록된 학생이 없습니다.</span>` :
+                classStudents.map(s => {
+                  const isChecked = groupRecordState.selectedStudentIds.includes(s.studentId);
+                  const sadaiVal = groupRecordState.sadaiMap[s.studentId] !== undefined ? groupRecordState.sadaiMap[s.studentId] : 0;
+                  return `
+                    <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-xl">
+                      <button type="button" onclick="toggleGroupStudentSelection('${s.studentId}', ${!isChecked})" class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        isChecked ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100'
+                      }">
+                        <span>${s.number}번 ${s.name}</span>
+                        <span>${isChecked ? '✓' : '+'}</span>
+                      </button>
+                      ${isChecked ? `
+                        <select onchange="setStudentSadaiAssignment('${s.studentId}', this.value, 'group')" class="bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 px-1 py-0.5 outline-none">
+                          ${Array.from({ length: Math.max(totalSadaiCount, 4) }, (_, i) => `
+                            <option value="${i}" ${sadaiVal === i ? 'selected' : ''}>${i + 1}사대</option>
+                          `).join('')}
+                        </select>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')
+              }
+            </div>
+          </div>
+
+          <div class="bg-slate-900 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-white">
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-thin">
+              <span class="text-xs font-bold text-slate-400 ml-2">사대 목록:</span>
+              ${Array.from({ length: totalSadaiCount }, (_, idx) => {
+                const countInSadai = groupRecordState.selectedStudentIds.filter(id => (groupRecordState.sadaiMap[id] || 0) === idx).length;
+                return `
+                  <button type="button" onclick="groupRecordState.activeSadaiIdx = ${idx}; renderAddRecordView();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    groupRecordState.activeSadaiIdx === idx ? 'bg-red-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }">
+                    🎯 ${idx + 1}사대 <span class="px-1.5 py-0.2 bg-black/30 rounded-full text-[10px]">${countInSadai}명</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+            <button type="button" onclick="addNewSadai('group')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-700 transition-colors flex items-center gap-1">
+              ➕ 사대 추가
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-4 bg-red-600 rounded-full"></span>
+                ${groupRecordState.activeSadaiIdx + 1}사대 기록판 (배정 인원)
+              </span>
+              <span class="text-xs font-normal text-slate-500">현재 사대 인원: ${currentSadaiStudentIds.length}명</span>
+            </h3>
+            ${activeStudentsHtml}
+          </div>
+
+          ${groupRecordState.selectedStudentIds.length > 0 ? `
+            <div class="bg-slate-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between shadow-xl gap-4">
+              <div>
+                <p class="text-sm font-bold">선택된 ${groupRecordState.selectedStudentIds.length}명의 습사 기록을 동시 저장합니다.</p>
+                <p class="text-xs text-slate-400">배정된 사대 구분과 상관없이 참여한 모든 학생의 기록이 저장됩니다.</p>
+              </div>
+              <button type="button" onclick="submitGroupRecordForm()" class="w-full sm:w-auto px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-colors shadow">
+                💾 전체 ${groupRecordState.selectedStudentIds.length}명 습사 기록 저장
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function submitGroupRecordForm() {
+      const selectedIds = groupRecordState.selectedStudentIds;
+      if (selectedIds.length === 0) {
+        showToast('저장할 학생을 선택해 주세요.', 'error');
+        return;
+      }
+
+      const recDate = groupRecordState.date || getTodayDateString();
+      const recPeriod = groupRecordState.period || '방과후';
+      let savedCount = 0;
+
+      selectedIds.forEach(studentId => {
+        const results = groupRecordState.studentResults[studentId] || [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+
+        const totalHits = results.flat().filter(Boolean).length;
+        const hitRate = parseFloat(((totalHits / 15) * 100).toFixed(1));
+
+        records.unshift({
+          id: 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          date: recDate,
+          period: recPeriod,
+          studentId,
+          mode: groupRecordState.mode || 'practice',
+          title: '학급 사대 습사',
+          results: JSON.parse(JSON.stringify(results)),
+          totalHits,
+          hitRate
+        });
+
+        groupRecordState.studentResults[studentId] = [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+        savedCount++;
+      });
+
+      saveState();
+      showToast(`${savedCount}명 학생의 습사 기록이 성공적으로 저장되었습니다!`);
+      renderAddRecordView();
+    }
+
+    function addStudentToCompetitionRoster(studentId) {
+      if (!competitionRecordState.rosterStudentIds.includes(studentId)) {
+        competitionRecordState.rosterStudentIds.push(studentId);
+        if (competitionRecordState.sadaiMap[studentId] === undefined) {
+          competitionRecordState.sadaiMap[studentId] = competitionRecordState.activeSadaiIdx || 0;
+        }
+        if (!competitionRecordState.studentResults[studentId]) {
+          competitionRecordState.studentResults[studentId] = [
+            [false, false, false, false, false],
+            [false, false, false, false, false],
+            [false, false, false, false, false]
+          ];
+        }
+        showToast('대회 명단에 추가되었습니다.');
+        renderAddRecordView();
+      }
+    }
+
+    function removeStudentFromCompetitionRoster(studentId) {
+      competitionRecordState.rosterStudentIds = competitionRecordState.rosterStudentIds.filter(id => id !== studentId);
+      renderAddRecordView();
+    }
+
+    function toggleCompArrowHit(sId, sunIdx, arrowIdx) {
+      if (!competitionRecordState.studentResults[sId]) {
+        competitionRecordState.studentResults[sId] = [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+      }
+      competitionRecordState.studentResults[sId][sunIdx][arrowIdx] = !competitionRecordState.studentResults[sId][sunIdx][arrowIdx];
+      renderAddRecordView();
+    }
+
+    function buildCompetitionRecordFormHTML() {
+      const grade = competitionRecordState.filterGrade;
+      const classNo = competitionRecordState.filterClass;
+      const search = competitionRecordState.searchQuery.trim().toLowerCase();
+
+      let availableStudents = students.filter(s => {
+        if (grade !== 'all' && s.grade !== grade) return false;
+        if (classNo !== 'all' && s.classNo !== classNo) return false;
+        if (search) {
+          const matchName = s.name.toLowerCase().includes(search);
+          const matchId = s.studentId.toLowerCase().includes(search);
+          if (!matchName && !matchId) return false;
+        }
+        return true;
+      });
+
+      let maxSadai = 0;
+      competitionRecordState.rosterStudentIds.forEach(sId => {
+        const sIdx = competitionRecordState.sadaiMap[sId] !== undefined ? competitionRecordState.sadaiMap[sId] : 0;
+        if (sIdx > maxSadai) maxSadai = sIdx;
+      });
+
+      const totalSadaiCount = Math.max(1, maxSadai + 1);
+      if (competitionRecordState.activeSadaiIdx >= totalSadaiCount) {
+        competitionRecordState.activeSadaiIdx = 0;
+      }
+
+      const activeSadaiStudentIds = competitionRecordState.rosterStudentIds.filter(
+        sId => (competitionRecordState.sadaiMap[sId] || 0) === competitionRecordState.activeSadaiIdx
+      );
+
+      let activeCompStudentsHtml = '';
+      if (competitionRecordState.rosterStudentIds.length === 0) {
+        activeCompStudentsHtml = `
+          <div class="p-8 text-center text-slate-400 bg-amber-50/50 rounded-2xl border border-dashed border-amber-300">
+            대회 참전 학생이 없습니다. 아래 학생 검색 목록에서 학생을 추가해 주세요!
+          </div>
+        `;
+      } else if (activeSadaiStudentIds.length === 0) {
+        activeCompStudentsHtml = `<div class="p-8 text-center text-slate-400 bg-amber-50/50 rounded-2xl border border-dashed border-amber-300">현재 대회 ${competitionRecordState.activeSadaiIdx + 1}사대에 배정된 학생이 없습니다.</div>`;
+      } else {
+        activeCompStudentsHtml = activeSadaiStudentIds.map((sId, localIdx) => {
+          const s = students.find(item => item.studentId === sId);
+          if (!s) return '';
+
+          const res = competitionRecordState.studentResults[sId] || [
+            [false, false, false, false, false],
+            [false, false, false, false, false],
+            [false, false, false, false, false]
+          ];
+
+          const totalHits = res.flat().filter(Boolean).length;
+          const hitRate = ((totalHits / 15) * 100).toFixed(1);
+
+          return `
+            <div class="bg-white p-4 rounded-2xl border border-red-200 shadow-sm space-y-3">
+              <div class="flex flex-wrap items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-1 rounded-lg bg-red-600 text-white font-black text-xs flex items-center justify-center">${localIdx + 1}번</span>
+                  <span class="font-bold text-slate-900 text-sm">${s.name}</span>
+                  <span class="text-xs text-slate-500 font-semibold">(${s.grade}학년 ${s.classNo}반 ${s.number}번)</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold">
+                    <span class="text-slate-500 text-[11px]">사대 변경:</span>
+                    <select onchange="setStudentSadaiAssignment('${s.studentId}', this.value, 'competition')" class="bg-transparent font-bold text-slate-800 outline-none">
+                      ${Array.from({ length: Math.max(totalSadaiCount, 4) }, (_, i) => `
+                        <option value="${i}" ${(competitionRecordState.sadaiMap[s.studentId] || 0) === i ? 'selected' : ''}>대회 ${i + 1}사대</option>
+                      `).join('')}
+                    </select>
+                  </div>
+
+                  <span class="text-xs font-bold text-slate-600">대회 점수: <strong class="text-red-600 font-black text-sm">${totalHits}중</strong> (${hitRate}%)</span>
+                  <button type="button" onclick="removeStudentFromCompetitionRoster('${s.studentId}')" class="text-slate-400 hover:text-red-600 text-xs font-bold px-1.5 py-0.5 rounded">✕ 제외</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                ${[0, 1, 2].map(sunIdx => `
+                  <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-slate-700 w-8">${sunIdx + 1}순</span>
+                    <div class="flex items-center gap-1">
+                      ${[0, 1, 2, 3, 4].map(arrowIdx => {
+                        const isHit = res[sunIdx][arrowIdx];
+                        return `
+                          <button type="button" onclick="toggleCompArrowHit('${s.studentId}', ${sunIdx}, ${arrowIdx})" class="w-7 h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                            isHit ? 'bg-red-600 text-white shadow ring-1 ring-red-500' : 'bg-white text-slate-300 border border-slate-200 hover:border-slate-400'
+                          }">
+                            ${isHit ? 'O' : 'X'}
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-500 w-8 text-right">${res[sunIdx].filter(Boolean).length}중</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-gradient-to-r from-red-900 to-slate-900 text-white p-6 rounded-2xl shadow-md space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-red-600 text-white uppercase tracking-wider">🏆 대회 습사 기록 모드</span>
+                <h3 class="text-lg font-extrabold mt-1">학년/학급 통합 대회 명단 및 사대 직접 배정</h3>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">대회 날짜</label>
+                  <input type="date" value="${competitionRecordState.date || getTodayDateString()}" onchange="competitionRecordState.date = this.value" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold border border-slate-700 outline-none focus:border-red-500" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">교시/시간대</label>
+                  <select onchange="competitionRecordState.period = this.value" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold border border-slate-700 outline-none focus:border-red-500">
+                    ${PERIOD_OPTIONS.map(p => `<option value="${p}" ${competitionRecordState.period === p ? 'selected' : ''}>${p}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">대회 명칭</label>
+                  <input type="text" value="${competitionRecordState.title}" oninput="competitionRecordState.title = this.value" placeholder="예: 제1회 교내 국궁 대회" class="w-full sm:w-48 px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold border border-slate-700 outline-none focus:border-red-500" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span>➕</span> 대회 참전 학생 검색 및 사대 지정
+              </span>
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="autoAssignSadaiBy7('competition')" class="px-2.5 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors">
+                  🔄 7명씩 자동 배정
+                </button>
+                <select onchange="competitionRecordState.filterGrade = this.value; renderAddRecordView();" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  <option value="all" ${grade === 'all' ? 'selected' : ''}>전체 학년</option>
+                  <option value="1" ${grade === '1' ? 'selected' : ''}>1학년</option>
+                  <option value="2" ${grade === '2' ? 'selected' : ''}>2학년</option>
+                  <option value="3" ${grade === '3' ? 'selected' : ''}>3학년</option>
+                </select>
+                <select onchange="competitionRecordState.filterClass = this.value; renderAddRecordView();" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  <option value="all" ${classNo === 'all' ? 'selected' : ''}>전체 반</option>
+                  ${[1,2,3,4,5,6,7,8,9,10,11,12].map(c => `<option value="${c}" ${classNo == c ? 'selected' : ''}>${c}반</option>`).join('')}
+                </select>
+                <input type="text" value="${competitionRecordState.searchQuery}" oninput="competitionRecordState.searchQuery = this.value; renderAddRecordView();" placeholder="학생 이름 검색..." class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-medium bg-white outline-none" />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1 scrollbar-thin">
+              ${availableStudents.length === 0 ? `<span class="text-xs text-slate-400">조건에 일치하는 학생이 없습니다.</span>` :
+                availableStudents.map(s => {
+                  const isAdded = competitionRecordState.rosterStudentIds.includes(s.studentId);
+                  const sadaiVal = competitionRecordState.sadaiMap[s.studentId] !== undefined ? competitionRecordState.sadaiMap[s.studentId] : 0;
+                  return `
+                    <div class="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl">
+                      <button type="button" onclick="${isAdded ? `removeStudentFromCompetitionRoster('${s.studentId}')` : `addStudentToCompetitionRoster('${s.studentId}')`}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        isAdded ? 'bg-red-600 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }">
+                        <span>${s.grade}학년 ${s.classNo}반 ${s.name}</span>
+                        <span>${isAdded ? '✓ 선택됨' : '+ 추가'}</span>
+                      </button>
+                      ${isAdded ? `
+                        <select onchange="setStudentSadaiAssignment('${s.studentId}', this.value, 'competition')" class="bg-slate-50 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 px-1 py-0.5 outline-none">
+                          ${Array.from({ length: Math.max(totalSadaiCount, 4) }, (_, i) => `
+                            <option value="${i}" ${sadaiVal === i ? 'selected' : ''}>${i + 1}사대</option>
+                          `).join('')}
+                        </select>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')
+              }
+            </div>
+          </div>
+
+          <div class="bg-slate-900 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-white">
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-thin">
+              <span class="text-xs font-bold text-slate-400 ml-2">대회 사대:</span>
+              ${Array.from({ length: totalSadaiCount }, (_, idx) => {
+                const countInSadai = competitionRecordState.rosterStudentIds.filter(id => (competitionRecordState.sadaiMap[id] || 0) === idx).length;
+                return `
+                  <button type="button" onclick="competitionRecordState.activeSadaiIdx = ${idx}; renderAddRecordView();" class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    competitionRecordState.activeSadaiIdx === idx ? 'bg-red-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }">
+                    🏆 대회 ${idx + 1}사대 <span class="px-1.5 py-0.2 bg-black/30 rounded-full text-[10px]">${countInSadai}명</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="addNewSadai('competition')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-700 transition-colors">
+                ➕ 사대 추가
+              </button>
+              <span class="text-xs text-slate-400 font-medium mr-2">총 참전: ${competitionRecordState.rosterStudentIds.length}명</span>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-4 bg-red-600 rounded-full"></span>
+                대회 ${competitionRecordState.activeSadaiIdx + 1}사대 기록판 (배정 인원)
+              </span>
+              <span class="text-xs font-normal text-slate-500">사대 인원: ${activeSadaiStudentIds.length}명</span>
+            </h3>
+            ${activeCompStudentsHtml}
+          </div>
+
+          ${competitionRecordState.rosterStudentIds.length > 0 ? `
+            <div class="bg-slate-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between shadow-xl gap-4">
+              <div>
+                <p class="text-sm font-bold">대회 참전 ${competitionRecordState.rosterStudentIds.length}명의 기록을 일괄 저장합니다.</p>
+                <p class="text-xs text-slate-400 font-mono">대회명: [${competitionRecordState.title || '교내 대회'}]</p>
+              </div>
+              <button type="button" onclick="submitCompetitionRecordForm()" class="w-full sm:w-auto px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-colors shadow">
+                🥇 대회 기록 일괄 저장
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function submitCompetitionRecordForm() {
+      const rosterIds = competitionRecordState.rosterStudentIds;
+      if (rosterIds.length === 0) {
+        showToast('대회 기록을 저장할 학생을 선택해 주세요.', 'error');
+        return;
+      }
+
+      const recDate = competitionRecordState.date || getTodayDateString();
+      const recPeriod = competitionRecordState.period || '방과후';
+      const compTitle = competitionRecordState.title.trim() || '교내 국궁 대회';
+      let savedCount = 0;
+
+      rosterIds.forEach(studentId => {
+        const results = competitionRecordState.studentResults[studentId] || [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+
+        const totalHits = results.flat().filter(Boolean).length;
+        const hitRate = parseFloat(((totalHits / 15) * 100).toFixed(1));
+
+        records.unshift({
+          id: 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          date: recDate,
+          period: recPeriod,
+          studentId,
+          mode: 'competition',
+          title: compTitle,
+          results: JSON.parse(JSON.stringify(results)),
+          totalHits,
+          hitRate
+        });
+
+        competitionRecordState.studentResults[studentId] = [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+        savedCount++;
+      });
+
+      saveState();
+      showToast(`${savedCount}명 학생의 대회 기록이 성공적으로 저장되었습니다!`);
+      renderAddRecordView();
+    }
+
+    function onRecordGradeClassChange() {
+      const grade = document.getElementById('add-rec-grade').value;
+      const classNo = document.getElementById('add-rec-class').value;
+
+      activeRecordFormState.grade = grade;
+      activeRecordFormState.classNo = classNo;
+
+      const studentSelect = document.getElementById('add-rec-student');
+      const filtered = students.filter(s => s.grade === grade && s.classNo === classNo);
+      
+      studentSelect.innerHTML = '';
+      if (filtered.length === 0) {
+        studentSelect.innerHTML = `<option value="">(해당 학급에 학생 없음)</option>`;
+        activeRecordFormState.studentId = '';
+      } else {
+        filtered.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.studentId;
+          opt.innerText = `${s.number}번 ${s.name} (${s.studentId})`;
+          studentSelect.appendChild(opt);
+        });
+        activeRecordFormState.studentId = filtered[0].studentId;
+      }
+    }
+
+    function toggleArrowHit(mode, sunIdx, arrowIdx) {
+      const state = mode === 'add' ? activeRecordFormState : editingRecordState;
+      state.results[sunIdx][arrowIdx] = !state.results[sunIdx][arrowIdx];
+
+      if (mode === 'add') {
+        renderAddRecordView();
+      } else {
+        renderHistoryEditForm();
+      }
+    }
+
+    function setRecordFormMode(formType, selectedMode) {
+      if (formType === 'add') {
+        activeRecordFormState.mode = selectedMode;
+        renderAddRecordView();
+      } else {
+        editingRecordState.mode = selectedMode;
+        renderHistoryEditForm();
+      }
+    }
+
+    function buildRecordFormHTML(mode, state) {
+      const totalHits = state.results.flat().filter(Boolean).length;
+      const hitRate = ((totalHits / 15) * 100).toFixed(1);
+      const currentMode = state.mode || 'practice';
+
+      const classStudents = students.filter(s => s.grade === state.grade && s.classNo === state.classNo);
+
+      return `
+        <div class="space-y-8">
+          <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">습사 날짜</label>
+              <input type="date" value="${state.date || getTodayDateString()}" onchange="${mode === 'add' ? 'activeRecordFormState.date = this.value' : 'editingRecordState.date = this.value'}" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">교시/시간대 선택</label>
+              <select onchange="${mode === 'add' ? 'activeRecordFormState.period = this.value' : 'editingRecordState.period = this.value'}" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white outline-none">
+                ${PERIOD_OPTIONS.map(p => `<option value="${p}" ${state.period === p ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+            </div>
+            ${mode === 'add' ? `
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">학년 선택</label>
+                <select id="add-rec-grade" onchange="onRecordGradeClassChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  <option value="1" ${state.grade === '1' ? 'selected' : ''}>1학년</option>
+                  <option value="2" ${state.grade === '2' ? 'selected' : ''}>2학년</option>
+                  <option value="3" ${state.grade === '3' ? 'selected' : ''}>3학년</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">학급 (반) 선택</label>
+                <select id="add-rec-class" onchange="onRecordGradeClassChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  ${[1,2,3,4,5,6,7,8,9,10,11,12].map(c => `<option value="${c}" ${state.classNo == c ? 'selected' : ''}>${c}반</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">학생 선택</label>
+                <select id="add-rec-student" onchange="activeRecordFormState.studentId = this.value" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  ${classStudents.length === 0 ? `<option value="">(등록된 학생 없음)</option>` : 
+                    classStudents.map(s => `<option value="${s.studentId}" ${s.studentId === state.studentId ? 'selected' : ''}>${s.number}번 ${s.name} (${s.studentId})</option>`).join('')
+                  }
+                </select>
+              </div>
+            ` : ''}
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-2">습사 모드 선택</label>
+            <div class="flex flex-wrap gap-3">
+              <button type="button" onclick="setRecordFormMode('${mode}', 'practice')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${currentMode === 'practice' ? 'bg-sky-500 text-white border-sky-500 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}">
+                🎯 연습 모드 (자율 연습)
+              </button>
+              <button type="button" onclick="setRecordFormMode('${mode}', 'evaluation')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${currentMode === 'evaluation' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}">
+                🏆 평가 모드 (공식 측정)
+              </button>
+              <button type="button" onclick="setRecordFormMode('${mode}', 'competition')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${currentMode === 'competition' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}">
+                🥇 대회 모드
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-3">관중 기록 (과녁 화살 클릭하여 O/X 전환)</label>
+            <div class="space-y-4">
+              ${[0, 1, 2].map(sunIdx => `
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-sm w-12">${sunIdx + 1}순</div>
+                  <div class="flex flex-1 justify-between sm:justify-start gap-2 sm:gap-4">
+                    ${[0, 1, 2, 3, 4].map(arrowIdx => {
+                      const isHit = state.results[sunIdx][arrowIdx];
+                      return `
+                        <button type="button" onclick="toggleArrowHit('${mode}', ${sunIdx}, ${arrowIdx})" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex flex-col items-center justify-center font-black text-base transition-all active:scale-95 ${
+                          isHit ? 'bg-red-600 text-white shadow-lg shadow-red-200 ring-2 ring-red-500' : 'bg-white text-slate-300 border-2 border-slate-300 hover:border-slate-400'
+                        }">
+                          <span class="text-[10px] font-medium opacity-70">${arrowIdx + 1}시</span>
+                          <span>${isHit ? 'O' : 'X'}</span>
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                  <div class="text-slate-600 text-xs font-bold ml-auto mt-2 sm:mt-0 text-right w-full sm:w-auto">
+                    ${state.results[sunIdx].filter(Boolean).length}중 / 5시
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="bg-slate-900 text-white rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between shadow-xl">
+            <div class="flex items-center gap-8 mb-4 sm:mb-0">
+              <div>
+                <p class="text-slate-400 text-xs mb-1">총 관중수 (15발)</p>
+                <p class="text-3xl font-black text-white">${totalHits} <span class="text-sm font-normal text-slate-400">중</span></p>
+              </div>
+              <div>
+                <p class="text-slate-400 text-xs mb-1">관중율</p>
+                <p class="text-3xl font-black text-red-500">${hitRate} <span class="text-sm font-normal">%</span></p>
+              </div>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto">
+              ${mode === 'edit' ? `
+                <button type="button" onclick="cancelHistoryEdit()" class="flex-1 sm:flex-none px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors">취소</button>
+                <button type="button" onclick="submitRecordForm('${mode}')" class="flex-1 sm:flex-none px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-colors shadow">수정 내용 저장</button>
+              ` : `
+                <button type="button" onclick="submitRecordForm('${mode}')" class="flex-1 sm:flex-none px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-colors shadow">기록 저장하기</button>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function submitRecordForm(mode) {
+      if (mode === 'add') {
+        const studentId = activeRecordFormState.studentId;
+        if (!studentId) {
+          showToast('기록을 입력할 학생을 선택해 주세요.', 'error');
+          return;
+        }
+
+        const totalHits = activeRecordFormState.results.flat().filter(Boolean).length;
+        const hitRate = parseFloat(((totalHits / 15) * 100).toFixed(1));
+        const recDate = activeRecordFormState.date || getTodayDateString();
+        const recPeriod = activeRecordFormState.period || '방과후';
+
+        records.unshift({
+          id: 'rec_' + Date.now(),
+          date: recDate,
+          period: recPeriod,
+          studentId,
+          mode: activeRecordFormState.mode || 'practice',
+          title: activeRecordFormState.mode === 'competition' ? '개인 대회 습사' : (activeRecordFormState.mode === 'evaluation' ? '수행평가' : '자율 연습'),
+          results: JSON.parse(JSON.stringify(activeRecordFormState.results)),
+          totalHits,
+          hitRate
+        });
+
+        activeRecordFormState.results = [
+          [false, false, false, false, false],
+          [false, false, false, false, false],
+          [false, false, false, false, false]
+        ];
+
+        saveState();
+        showToast('습사 기록이 성공적으로 저장되었습니다!');
+        renderAddRecordView();
+      } else if (mode === 'edit' && editingRecordState) {
+        const totalHits = editingRecordState.results.flat().filter(Boolean).length;
+        const hitRate = parseFloat(((totalHits / 15) * 100).toFixed(1));
+        const recDate = editingRecordState.date || getTodayDateString();
+        const recPeriod = editingRecordState.period || '방과후';
+
+        records = records.map(r => r.id === editingRecordState.id ? {
+          ...r,
+          date: recDate,
+          period: recPeriod,
+          mode: editingRecordState.mode,
+          results: JSON.parse(JSON.stringify(editingRecordState.results)),
+          totalHits,
+          hitRate
+        } : r);
+
+        saveState();
+        cancelHistoryEdit();
+        showToast('기록이 수정되었습니다.');
+        renderHistoryTable();
+        updateSummaryStats();
+      }
+    }
+
+    // ================= HISTORY TAB FUNCTIONS =================
+    function updateHistoryStudentDropdown() {
+      const g = document.getElementById('history-grade-select').value;
+      const c = document.getElementById('history-class-select').value;
+      const sel = document.getElementById('history-student-select');
+
+      let list = students.filter(s => {
+        if (g !== 'all' && s.grade !== g) return false;
+        if (c !== 'all' && s.classNo !== c) return false;
+        return true;
+      });
+
+      sel.innerHTML = `<option value="all">전체 학생 (${list.length}명)</option>`;
+      list.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.studentId;
+        opt.innerText = `${s.grade}학년 ${s.classNo}반 ${s.number}번 ${s.name}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function setHistoryModeFilter(mode) {
+      historyModeFilter = mode;
+      ['all', 'practice', 'evaluation', 'competition'].forEach(m => {
+        const btn = document.getElementById(`history-filter-${m}`);
+        if (m === mode) {
+          btn.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow font-bold";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium";
+        }
+      });
+      renderHistoryTable();
+    }
+
+    function toggleSelectAllRecords(checked) {
+      const checkboxes = document.querySelectorAll('.record-select-cb');
+      checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    function deleteSelectedRecords() {
+      const checkboxes = document.querySelectorAll('.record-select-cb:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+
+      if (selectedIds.length === 0) {
+        showToast('삭제할 기록을 선택해 주세요.', 'error');
+        return;
+      }
+
+      openConfirm(`선택한 ${selectedIds.length}개의 습사 기록을 삭제하시겠습니까?`, () => {
+        records = records.filter(r => !selectedIds.includes(r.id));
+        saveState();
+        showToast(`${selectedIds.length}개의 기록이 삭제되었습니다.`);
+        renderHistoryTable();
+        updateSummaryStats();
+      });
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-table-body');
+      const g = document.getElementById('history-grade-select').value;
+      const c = document.getElementById('history-class-select').value;
+      const sId = document.getElementById('history-student-select').value;
+
+      const selectAllCb = document.getElementById('select-all-records');
+      if (selectAllCb) selectAllCb.checked = false;
+
+      let filtered = records.filter(r => {
+        if (historyModeFilter !== 'all' && r.mode !== historyModeFilter) return false;
+
+        const student = students.find(s => s.studentId === r.studentId);
+        if (!student) return false;
+
+        if (g !== 'all' && student.grade !== g) return false;
+        if (c !== 'all' && student.classNo !== c) return false;
+        if (sId !== 'all' && r.studentId !== sId) return false;
+
+        return true;
+      });
+
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center text-slate-400">조회 조건에 맞는 기록이 없습니다.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((r, idx) => {
+        const student = students.find(s => s.studentId === r.studentId);
+        const displayDate = `${r.date || '날짜 미지정'} (${r.period || '방과후'})`;
+
+        let diffHtml = '<span class="text-slate-400">-</span>';
+        const sameStudentRecs = records.filter(item => item.studentId === r.studentId)
+                                       .sort((a,b) => new Date(a.date) - new Date(b.date));
+        const prevIdx = sameStudentRecs.findIndex(item => item.id === r.id);
+        if (prevIdx > 0) {
+          const prev = sameStudentRecs[prevIdx - 1];
+          const diff = r.totalHits - prev.totalHits;
+          if (diff > 0) {
+            diffHtml = `<span class="text-emerald-600 font-bold">▲ +${diff}중</span>`;
+          } else if (diff < 0) {
+            diffHtml = `<span class="text-red-500 font-bold">▼ ${diff}중</span>`;
+          } else {
+            diffHtml = `<span class="text-slate-500 font-semibold">= 동일</span>`;
+          }
+        }
+
+        let modeBadge = '';
+        if (r.mode === 'competition') modeBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-red-100 text-red-700">🥇 대회</span>`;
+        else if (r.mode === 'evaluation') modeBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 text-amber-800">🏆 평가</span>`;
+        else modeBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-700">🎯 연습</span>`;
+
+        const sunHits = r.results.map(sun => sun.filter(Boolean).length);
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="p-4 text-center no-print">
+            <input type="checkbox" class="record-select-cb rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer" value="${r.id}">
+          </td>
+          <td class="p-4 text-xs font-bold text-slate-700 whitespace-nowrap">${displayDate}</td>
+          <td class="p-4 text-center whitespace-nowrap">
+            <span class="font-bold text-slate-900">${student ? student.name : '미등록'}</span>
+            <span class="text-xs text-slate-400 block">${student ? `${student.grade}-${student.classNo}-${student.number}` : r.studentId}</span>
+          </td>
+          <td class="p-4 text-center whitespace-nowrap">${modeBadge}</td>
+          <td class="p-4 text-center font-semibold text-xs">${sunHits[0]}중</td>
+          <td class="p-4 text-center font-semibold text-xs">${sunHits[1]}중</td>
+          <td class="p-4 text-center font-semibold text-xs">${sunHits[2]}중</td>
+          <td class="p-4 text-center font-extrabold text-sm text-red-600 whitespace-nowrap">${r.totalHits}중 / 15</td>
+          <td class="p-4 text-center font-black whitespace-nowrap">${r.hitRate}%</td>
+          <td class="p-4 text-center whitespace-nowrap bg-slate-50/60">${diffHtml}</td>
+          <td class="p-4 text-center whitespace-nowrap no-print">
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="startHistoryEdit('${r.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="수정">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button onclick="deleteRecord('${r.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function startHistoryEdit(recordId) {
+      const rec = records.find(r => r.id === recordId);
+      if (!rec) return;
+
+      editingRecordState = JSON.parse(JSON.stringify(rec));
+      editingRecordState.date = rec.date || getTodayDateString();
+      editingRecordState.period = rec.period || '방과후';
+      const container = document.getElementById('history-edit-modal-container');
+      container.classList.remove('hidden');
+      renderHistoryEditForm();
+    }
+
+    function renderHistoryEditForm() {
+      const container = document.getElementById('history-edit-modal-container');
+      if (!editingRecordState) return;
+
+      const student = students.find(s => s.studentId === editingRecordState.studentId);
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-2xl border border-amber-300 shadow-md space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span>✏️</span> 습사 기록 및 일시 수정 - [${student ? `${student.grade}학년 ${student.classNo}반 ${student.name}` : editingRecordState.studentId}]
+            </h3>
+            <button onclick="cancelHistoryEdit()" class="text-slate-400 hover:text-slate-700 text-xs font-bold">✕ 닫기</button>
+          </div>
+          ${buildRecordFormHTML('edit', editingRecordState)}
+        </div>
+      `;
+    }
+
+    function cancelHistoryEdit() {
+      editingRecordState = null;
+      const container = document.getElementById('history-edit-modal-container');
+      container.classList.add('hidden');
+      container.innerHTML = '';
+    }
+
+    function deleteRecord(recordId) {
+      openConfirm('이 습사 기록을 삭제하시겠습니까?', () => {
+        records = records.filter(r => r.id !== recordId);
+        saveState();
+        showToast('기록이 삭제되었습니다.');
+        renderHistoryTable();
+        updateSummaryStats();
+      });
+    }
+
+    function updateSummaryStats() {
+      const totalSessions = records.length;
+      document.getElementById('stats-total-sessions').innerText = `${totalSessions}회`;
+
+      if (totalSessions === 0) {
+        document.getElementById('stats-school-avg-rate').innerText = '0.0%';
+        document.getElementById('stats-top-class').innerText = '-';
+        document.getElementById('stats-top-grade').innerText = '-';
+        return;
+      }
+
+      const totalHits = records.reduce((acc, cur) => acc + cur.totalHits, 0);
+      const schoolAvg = ((totalHits / (totalSessions * 15)) * 100).toFixed(1);
+      document.getElementById('stats-school-avg-rate').innerText = `${schoolAvg}%`;
+
+      const classStats = {};
+      records.forEach(r => {
+        const s = students.find(item => item.studentId === r.studentId);
+        if (s) {
+          const key = `${s.grade}학년 ${s.classNo}반`;
+          classStats[key] = (classStats[key] || 0) + 1;
+        }
+      });
+
+      let topClass = '-';
+      let maxClassCount = 0;
+      Object.entries(classStats).forEach(([cKey, count]) => {
+        if (count > maxClassCount) {
+          maxClassCount = count;
+          topClass = `${cKey} (${count}회)`;
+        }
+      });
+      document.getElementById('stats-top-class').innerText = topClass;
+
+      const gradeHits = {};
+      const gradeShots = {};
+      records.forEach(r => {
+        const s = students.find(item => item.studentId === r.studentId);
+        if (s) {
+          gradeHits[s.grade] = (gradeHits[s.grade] || 0) + r.totalHits;
+          gradeShots[s.grade] = (gradeShots[s.grade] || 0) + 15;
+        }
+      });
+
+      let topGrade = '-';
+      let maxRate = -1;
+      Object.keys(gradeShots).forEach(g => {
+        const rate = (gradeHits[g] / gradeShots[g]) * 100;
+        if (rate > maxRate) {
+          maxRate = rate;
+          topGrade = `${g}학년 (${rate.toFixed(1)}%)`;
+        }
+      });
+      document.getElementById('stats-top-grade').innerText = topGrade;
+    }
+
+    // ================= RANKING TAB FUNCTIONS =================
+    function setRankingType(type) {
+      rankingType = type;
+      ['individual', 'class', 'grade'].forEach(t => {
+        const btn = document.getElementById(`rank-type-${t}`);
+        if (t === type) {
+          btn.className = "px-3.5 py-2 rounded-lg bg-slate-900 text-white shadow font-bold";
+        } else {
+          btn.className = "px-3.5 py-2 rounded-lg text-slate-700 hover:bg-slate-300 font-bold";
+        }
+      });
+
+      renderRankingView();
+    }
+
+    function setRankingModeFilter(mode) {
+      rankingModeFilter = mode;
+      ['all', 'evaluation', 'practice', 'competition'].forEach(m => {
+        const btn = document.getElementById(`ranking-filter-${m}`);
+        if (m === mode) {
+          btn.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow font-bold";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-slate-600 font-semibold";
+        }
+      });
+
+      renderRankingView();
+    }
+
+    function toggleRosterOpen(key) {
+      openRosters[key] = !openRosters[key];
+      renderRankingView();
+    }
+
+    function renderRankingView() {
+      const container = document.getElementById('ranking-container');
+      const indFilterBox = document.getElementById('individual-rank-filter-box');
+
+      if (rankingType === 'individual') {
+        if (indFilterBox) indFilterBox.classList.remove('hidden');
+        renderIndividualRankings(container);
+      } else if (rankingType === 'class') {
+        if (indFilterBox) indFilterBox.classList.add('hidden');
+        renderClassRankings(container);
+      } else if (rankingType === 'grade') {
+        if (indFilterBox) indFilterBox.classList.add('hidden');
+        renderGradeRankings(container);
+      }
+    }
+
+    // 1. INDIVIDUAL RANKING
+    function renderIndividualRankings(container) {
+      const gradeFilter = document.getElementById('ranking-grade-filter').value;
+      const classFilter = document.getElementById('ranking-class-filter').value;
+
+      let filteredStudents = students.filter(s => {
+        if (gradeFilter !== 'all' && s.grade !== gradeFilter) return false;
+        if (classFilter !== 'all' && s.classNo !== classFilter) return false;
+        return true;
+      });
+
+      let studentStats = filteredStudents.map(s => {
+        const studentRecs = records.filter(r => r.studentId === s.studentId && (rankingModeFilter === 'all' || r.mode === rankingModeFilter));
+        const totalSessions = studentRecs.length;
+        const totalHits = studentRecs.reduce((acc, cur) => acc + cur.totalHits, 0);
+        const totalArrows = totalSessions * 15;
+        const avgHitRate = totalArrows > 0 ? parseFloat(((totalHits / totalArrows) * 100).toFixed(1)) : 0;
+
+        return {
+          ...s,
+          totalSessions,
+          totalHits,
+          avgHitRate
+        };
+      });
+
+      studentStats = studentStats.filter(s => s.totalSessions > 0);
+
+      studentStats.sort((a, b) => {
+        if (b.avgHitRate !== a.avgHitRate) return b.avgHitRate - a.avgHitRate;
+        if (b.totalHits !== a.totalHits) return b.totalHits - a.totalHits;
+        return b.totalSessions - a.totalSessions;
+      });
+
+      if (studentStats.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400">
+            조건에 부합하는 개인 습사 기록이 없습니다.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <span class="w-2 h-4 bg-red-600 rounded-full"></span>
+              국궁 명궁 개인 랭킹 (총 ${studentStats.length}명)
+            </h3>
+            <span class="text-xs text-slate-500 font-medium no-print">※ 관중율 순 정렬</span>
+          </div>
+
+          <div class="p-0 overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 text-xs border-b border-slate-200 uppercase">
+                  <th class="p-4 text-center font-bold w-16">순위</th>
+                  <th class="p-4 font-bold">학생명 (학번)</th>
+                  <th class="p-4 font-bold text-center">소속 학급</th>
+                  <th class="p-4 font-bold text-center">총 습사 횟수</th>
+                  <th class="p-4 font-bold text-center">총 관중 화살</th>
+                  <th class="p-4 font-bold text-center text-red-600">평균 관중율</th>
+                  <th class="p-4 font-bold text-center">명궁 칭호</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm">
+                ${studentStats.map((s, idx) => {
+                  let badge = '<span class="text-slate-400 font-bold">-</span>';
+                  let rankStyle = 'text-slate-700 font-bold';
+                  if (idx === 0) {
+                    badge = '<span class="px-2.5 py-1 rounded-full text-xs font-black badge-gold shadow">🥇 최고 명궁</span>';
+                    rankStyle = 'text-amber-500 font-black text-base';
+                  } else if (idx === 1) {
+                    badge = '<span class="px-2.5 py-1 rounded-full text-xs font-black badge-silver shadow">🥈 차석 명궁</span>';
+                    rankStyle = 'text-slate-400 font-black text-base';
+                  } else if (idx === 2) {
+                    badge = '<span class="px-2.5 py-1 rounded-full text-xs font-black badge-bronze shadow">🥉 참방 명궁</span>';
+                    rankStyle = 'text-amber-700 font-black text-base';
+                  } else if (s.avgHitRate >= 60) {
+                    badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-200">🎯 명궁</span>';
+                  }
+
+                  return `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                      <td class="p-4 text-center ${rankStyle}">${idx + 1}위</td>
+                      <td class="p-4">
+                        <span class="font-bold text-slate-900">${s.name}</span>
+                        <span class="text-xs text-slate-400 font-mono ml-1">(${s.studentId})</span>
+                      </td>
+                      <td class="p-4 text-center font-medium">${s.grade}학년 ${s.classNo}반 ${s.number}번</td>
+                      <td class="p-4 text-center font-semibold text-slate-700">${s.totalSessions}회</td>
+                      <td class="p-4 text-center font-bold text-slate-800">${s.totalHits}중</td>
+                      <td class="p-4 text-center font-black text-red-600 text-base">${s.avgHitRate}%</td>
+                      <td class="p-4 text-center whitespace-nowrap">${badge}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. CLASS RANKING
+    function renderClassRankings(container) {
+      const classMap = {};
+
+      students.forEach(s => {
+        const key = `${s.grade}-${s.classNo}`;
+        if (!classMap[key]) {
+          classMap[key] = {
+            grade: s.grade,
+            classNo: s.classNo,
+            studentList: []
+          };
+        }
+        classMap[key].studentList.push(s);
+      });
+
+      let classList = Object.values(classMap).map(cls => {
+        let totalHits = 0;
+        let totalArrows = 0;
+        let totalSessions = 0;
+
+        let studentRoster = cls.studentList.map(s => {
+          const sRecs = records.filter(r => r.studentId === s.studentId && (rankingModeFilter === 'all' || r.mode === rankingModeFilter));
+          const sSessions = sRecs.length;
+          const sHits = sRecs.reduce((a, b) => a + b.totalHits, 0);
+          const sArrows = sSessions * 15;
+          const sRate = sArrows > 0 ? parseFloat(((sHits / sArrows) * 100).toFixed(1)) : 0;
+
+          totalHits += sHits;
+          totalArrows += sArrows;
+          totalSessions += sSessions;
+
+          return {
+            ...s,
+            sSessions,
+            sHits,
+            sRate
+          };
+        });
+
+        studentRoster.sort((a, b) => b.sRate - a.sRate || b.sHits - a.sHits);
+
+        const classAvgRate = totalArrows > 0 ? parseFloat(((totalHits / totalArrows) * 100).toFixed(1)) : 0;
+
+        return {
+          grade: cls.grade,
+          classNo: cls.classNo,
+          studentCount: cls.studentList.length,
+          totalHits,
+          totalArrows,
+          totalSessions,
+          classAvgRate,
+          studentRoster
+        };
+      });
+
+      classList = classList.filter(c => c.totalSessions > 0);
+      classList.sort((a, b) => b.classAvgRate - a.classAvgRate || b.totalHits - a.totalHits);
+
+      if (classList.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400">
+            조회 조건에 해당하는 학급 습사 데이터가 없습니다.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          ${classList.map((c, idx) => {
+            const rosterKey = `class_${c.grade}_${c.classNo}`;
+            const isOpen = openRosters[rosterKey] || false;
+
+            let rankBadge = `<span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-black text-sm flex items-center justify-center">${idx + 1}</span>`;
+            if (idx === 0) rankBadge = `<span class="w-8 h-8 rounded-xl badge-gold text-white font-black text-sm flex items-center justify-center shadow">1위</span>`;
+            else if (idx === 1) rankBadge = `<span class="w-8 h-8 rounded-xl badge-silver text-white font-black text-sm flex items-center justify-center shadow">2위</span>`;
+            else if (idx === 2) rankBadge = `<span class="w-8 h-8 rounded-xl badge-bronze text-white font-black text-sm flex items-center justify-center shadow">3위</span>`;
+
+            return `
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+                <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+                  <div class="flex items-center gap-3">
+                    ${rankBadge}
+                    <div>
+                      <h3 class="text-base font-extrabold text-slate-900">${c.grade}학년 ${c.classNo}반</h3>
+                      <p class="text-xs text-slate-500 font-medium mt-0.5">
+                        등록 학생 ${c.studentCount}명 중 ${c.studentRoster.filter(s => s.sSessions > 0).length}명 참여 · 총 ${c.totalSessions}회 습사
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-4 justify-between sm:justify-end">
+                    <div class="text-right">
+                      <span class="text-[11px] font-bold text-slate-400 block">학급 평균 관중율</span>
+                      <span class="text-xl font-black text-red-600">${c.classAvgRate}%</span>
+                      <span class="text-xs text-slate-500 font-bold ml-1">(${c.totalHits}중)</span>
+                    </div>
+
+                    <button type="button" onclick="toggleRosterOpen('${rosterKey}')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 no-print ${
+                      isOpen ? 'bg-slate-900 text-white border-slate-900 shadow' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }">
+                      <span>👥 소속 학생 명단</span>
+                      <span>${isOpen ? '▲ 닫기' : '▼ 펼치기'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                ${isOpen ? `
+                  <div class="p-4 border-t border-slate-200 bg-white">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-left border-collapse">
+                        <thead>
+                          <tr class="bg-slate-100 text-slate-600 text-[11px] border-b border-slate-200 uppercase">
+                            <th class="p-2.5 text-center font-bold w-12">반내 순위</th>
+                            <th class="p-2.5 font-bold">번호</th>
+                            <th class="p-2.5 font-bold">이름</th>
+                            <th class="p-2.5 font-bold text-center">습사 횟수</th>
+                            <th class="p-2.5 font-bold text-center">관중 화살</th>
+                            <th class="p-2.5 font-bold text-center text-red-600">개인 관중율</th>
+                            <th class="p-2.5 font-bold text-center">비고</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-xs">
+                          ${c.studentRoster.map((s, sIdx) => {
+                            let memberBadge = '-';
+                            if (s.sSessions > 0 && sIdx === 0) memberBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">🥇 반내 1위</span>';
+
+                            return `
+                              <tr class="hover:bg-slate-50 transition-colors ${s.sSessions === 0 ? 'opacity-40' : ''}">
+                                <td class="p-2.5 text-center font-bold ${sIdx === 0 && s.sSessions > 0 ? 'text-amber-600' : 'text-slate-500'}">
+                                  ${s.sSessions > 0 ? `${sIdx + 1}위` : '-'}
+                                </td>
+                                <td class="p-2.5 font-medium text-slate-600">${s.number}번</td>
+                                <td class="p-2.5 font-bold text-slate-900">${s.name}</td>
+                                <td class="p-2.5 text-center font-medium">${s.sSessions}회</td>
+                                <td class="p-2.5 text-center font-bold">${s.sHits}중</td>
+                                <td class="p-2.5 text-center font-black text-red-600">${s.sRate}%</td>
+                                <td class="p-2.5 text-center">${memberBadge}</td>
+                              </tr>
+                            `;
+                          }).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // 3. GRADE RANKING
+    function renderGradeRankings(container) {
+      const grades = ['1', '2', '3'];
+
+      let gradeList = grades.map(g => {
+        const gradeStudents = students.filter(s => s.grade === g);
+        let totalHits = 0;
+        let totalArrows = 0;
+        let totalSessions = 0;
+
+        let studentRoster = gradeStudents.map(s => {
+          const sRecs = records.filter(r => r.studentId === s.studentId && (rankingModeFilter === 'all' || r.mode === rankingModeFilter));
+          const sSessions = sRecs.length;
+          const sHits = sRecs.reduce((a, b) => a + b.totalHits, 0);
+          const sArrows = sSessions * 15;
+          const sRate = sArrows > 0 ? parseFloat(((sHits / sArrows) * 100).toFixed(1)) : 0;
+
+          totalHits += sHits;
+          totalArrows += sArrows;
+          totalSessions += sSessions;
+
+          return {
+            ...s,
+            sSessions,
+            sHits,
+            sRate
+          };
+        });
+
+        studentRoster.sort((a, b) => b.sRate - a.sRate || b.sHits - a.sHits);
+
+        const gradeAvgRate = totalArrows > 0 ? parseFloat(((totalHits / totalArrows) * 100).toFixed(1)) : 0;
+
+        return {
+          grade: g,
+          studentCount: gradeStudents.length,
+          totalHits,
+          totalArrows,
+          totalSessions,
+          gradeAvgRate,
+          studentRoster
+        };
+      });
+
+      gradeList = gradeList.filter(g => g.totalSessions > 0);
+      gradeList.sort((a, b) => b.gradeAvgRate - a.gradeAvgRate || b.totalHits - a.totalHits);
+
+      if (gradeList.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400">
+            조회 조건에 해당하는 학년 습사 데이터가 없습니다.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          ${gradeList.map((g, idx) => {
+            const rosterKey = `grade_${g.grade}`;
+            const isOpen = openRosters[rosterKey] || false;
+
+            let rankBadge = `<span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-black text-sm flex items-center justify-center">${idx + 1}</span>`;
+            if (idx === 0) rankBadge = `<span class="w-8 h-8 rounded-xl badge-gold text-white font-black text-sm flex items-center justify-center shadow">1위</span>`;
+            else if (idx === 1) rankBadge = `<span class="w-8 h-8 rounded-xl badge-silver text-white font-black text-sm flex items-center justify-center shadow">2위</span>`;
+            else if (idx === 2) rankBadge = `<span class="w-8 h-8 rounded-xl badge-bronze text-white font-black text-sm flex items-center justify-center shadow">3위</span>`;
+
+            return `
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+                <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+                  <div class="flex items-center gap-3">
+                    ${rankBadge}
+                    <div>
+                      <h3 class="text-base font-extrabold text-slate-900">${g.grade}학년 전체</h3>
+                      <p class="text-xs text-slate-500 font-medium mt-0.5">
+                        등록 학생 ${g.studentCount}명 중 ${g.studentRoster.filter(s => s.sSessions > 0).length}명 참여 · 총 ${g.totalSessions}회 습사
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-4 justify-between sm:justify-end">
+                    <div class="text-right">
+                      <span class="text-[11px] font-bold text-slate-400 block">학년 평균 관중율</span>
+                      <span class="text-xl font-black text-red-600">${g.gradeAvgRate}%</span>
+                      <span class="text-xs text-slate-500 font-bold ml-1">(${g.totalHits}중)</span>
+                    </div>
+
+                    <button type="button" onclick="toggleRosterOpen('${rosterKey}')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 no-print ${
+                      isOpen ? 'bg-slate-900 text-white border-slate-900 shadow' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }">
+                      <span>🎓 학년 소속 학생 명단</span>
+                      <span>${isOpen ? '▲ 닫기' : '▼ 펼치기'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                ${isOpen ? `
+                  <div class="p-4 border-t border-slate-200 bg-white">
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-left border-collapse">
+                        <thead>
+                          <tr class="bg-slate-100 text-slate-600 text-[11px] border-b border-slate-200 uppercase">
+                            <th class="p-2.5 text-center font-bold w-14">학년 순위</th>
+                            <th class="p-2.5 font-bold">학급</th>
+                            <th class="p-2.5 font-bold">번호</th>
+                            <th class="p-2.5 font-bold">이름</th>
+                            <th class="p-2.5 font-bold text-center">습사 횟수</th>
+                            <th class="p-2.5 font-bold text-center">관중 화살</th>
+                            <th class="p-2.5 font-bold text-center text-red-600">개인 관중율</th>
+                            <th class="p-2.5 font-bold text-center">칭호</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-xs">
+                          ${g.studentRoster.map((s, sIdx) => {
+                            let memberBadge = '-';
+                            if (s.sSessions > 0 && sIdx === 0) memberBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">🥇 학년 1위 명궁</span>';
+                            else if (s.sSessions > 0 && sIdx === 1) memberBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">🥈 학년 2위</span>';
+                            else if (s.sSessions > 0 && sIdx === 2) memberBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700">🥉 학년 3위</span>';
+
+                            return `
+                              <tr class="hover:bg-slate-50 transition-colors ${s.sSessions === 0 ? 'opacity-40' : ''}">
+                                <td class="p-2.5 text-center font-bold ${sIdx === 0 && s.sSessions > 0 ? 'text-amber-600' : 'text-slate-500'}">
+                                  ${s.sSessions > 0 ? `${sIdx + 1}위` : '-'}
+                                </td>
+                                <td class="p-2.5 font-semibold text-slate-700">${s.classNo}반</td>
+                                <td class="p-2.5 font-medium text-slate-600">${s.number}번</td>
+                                <td class="p-2.5 font-bold text-slate-900">${s.name}</td>
+                                <td class="p-2.5 text-center font-medium">${s.sSessions}회</td>
+                                <td class="p-2.5 text-center font-bold">${s.sHits}중</td>
+                                <td class="p-2.5 text-center font-black text-red-600">${s.sRate}%</td>
+                                <td class="p-2.5 text-center">${memberBadge}</td>
+                              </tr>
+                            `;
+                          }).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // App Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshCurrentTab();
+    });
+  </script>
+</body>
+</html>
